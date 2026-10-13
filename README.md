@@ -40,7 +40,9 @@ User Roles
 - Retailer: Browse products, place orders, and manage payments.
 
 Project Purpose
+
 This project demonstrates the application of Java, Spring Boot, REST APIs, database integration, and role-based authentication in a distributor business management system.
 
 Author
+
 Samiksha More
