@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Distributor Order Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="navbar-brand">
+        <div class="navbar-brand-icon">DO</div>
+        <h2>Distributor Order Management</h2>
+    </div>
+
+    <nav class="nav-links" id="navLinks">
+        <!-- Rendered dynamically by auth.js -->
+    </nav>
+
+    <div class="navbar-user">
+        <div class="user-info">
+            <div id="usernameDisplay">User</div>
+            <div class="user-role" id="roleDisplay">ROLE</div>
+        </div>
+        <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="page-header">
+        <div>
+            <h1 id="dashboardTitle">Dashboard</h1>
+            <p id="dashboardSubtitle">Overview of business operations and performance metrics</p>
+        </div>
+    </div>
+
+    <!-- ================================
+         DISTRIBUTOR DASHBOARD
+    ================================= -->
+    <section id="managementDashboard" style="display: none;">
+
+        <div class="dashboard-grid">
+
+            <!-- PRODUCTS -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Products</h3>
+                    <div class="stat-icon">P</div>
+                </div>
+                <p id="totalProducts">0</p>
+            </div>
+
+            <!-- RETAILERS -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Retailers</h3>
+                    <div class="stat-icon">R</div>
+                </div>
+                <p id="totalRetailers">0</p>
+            </div>
+
+            <!-- ORDERS -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Orders</h3>
+                    <div class="stat-icon">O</div>
+                </div>
+                <p id="totalOrders">0</p>
+            </div>
+
+            <!-- PENDING -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Pending Orders</h3>
+                    <div class="stat-icon">!</div>
+                </div>
+                <p id="pendingOrders">0</p>
+            </div>
+
+            <!-- DELIVERED -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Delivered Orders</h3>
+                    <div class="stat-icon">✓</div>
+                </div>
+                <p id="deliveredOrders">0</p>
+            </div>
+
+            <!-- LOW STOCK -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Low Stock Alert</h3>
+                    <div class="stat-icon">!</div>
+                </div>
+                <p id="lowStockProducts">0</p>
+            </div>
+
+            <!-- SALES -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Sales</h3>
+                    <div class="stat-icon">₹</div>
+                </div>
+                <p id="totalSales">₹0</p>
+            </div>
+
+            <!-- PAID -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Paid</h3>
+                    <div class="stat-icon">✓</div>
+                </div>
+                <p id="totalPaid">₹0</p>
+            </div>
+
+            <!-- OUTSTANDING -->
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Outstanding Balance</h3>
+                    <div class="stat-icon">₹</div>
+                </div>
+                <p id="totalOutstanding">₹0</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- ================================
+         RETAILER DASHBOARD
+    ================================= -->
+    <section id="retailerDashboard" style="display: none;">
+
+        <div class="dashboard-grid">
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>My Orders</h3>
+                    <div class="stat-icon">O</div>
+                </div>
+                <p id="retailerTotalOrders">0</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Pending Orders</h3>
+                    <div class="stat-icon">!</div>
+                </div>
+                <p id="retailerPendingOrders">0</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Delivered Orders</h3>
+                    <div class="stat-icon">✓</div>
+                </div>
+                <p id="retailerDeliveredOrders">0</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Ordered</h3>
+                    <div class="stat-icon">₹</div>
+                </div>
+                <p id="retailerTotalSales">₹0</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Total Paid</h3>
+                    <div class="stat-icon">✓</div>
+                </div>
+                <p id="retailerTotalPaid">₹0</p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <h3>Outstanding Balance</h3>
+                    <div class="stat-icon">₹</div>
+                </div>
+                <p id="retailerTotalOutstanding">₹0</p>
+            </div>
+
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Retailer Quick Navigation</h2>
+                    <p>Access your orders, place new requests, and complete pending payments.</p>
+                </div>
+            </div>
+
+            <div class="navigation">
+                <a href="/orders.html">Place New Order</a>
+                <a href="/orders.html">View My Orders</a>
+                <a href="/payments.html">Make Payment</a>
+                <a href="/payments.html">View Payment History</a>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ================================
+         MANAGEMENT NAVIGATION (Admin / Distributor)
+    ================================= -->
+    <section id="managementNavigation" style="display: none;">
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Quick Management Hub</h2>
+            </div>
+
+            <div class="navigation">
+                <a href="/products.html">Products & Inventory</a>
+                <a href="/retailers.html">Retailers</a>
+                <a href="/orders.html">Orders</a>
+                <a href="/payments.html">Payments</a>
+                <a href="/reports.html">Reports & Analytics</a>
+            </div>
+        </div>
+
+    </section>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/dashboard.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        requireLogin();
+        renderNavigation("dashboard");
+        loadDashboard();
+    });
+</script>
+
+</body>
+</html>

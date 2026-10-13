@@ -19,6 +19,10 @@ public class Order {
     @JoinColumn(name = "retailer_id", nullable = false)
     private Retailer retailer;
 
+    @ManyToOne
+    @JoinColumn(name = "distributor_id")
+    private Distributor distributor;
+
     @Column(nullable = false)
     private LocalDateTime orderDate;
 
@@ -53,6 +57,14 @@ public class Order {
 
     public void setRetailer(Retailer retailer) {
         this.retailer = retailer;
+    }
+
+    public Distributor getDistributor() {
+        return distributor;
+    }
+
+    public void setDistributor(Distributor distributor) {
+        this.distributor = distributor;
     }
 
     public LocalDateTime getOrderDate() {

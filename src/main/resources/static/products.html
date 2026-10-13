@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products & Inventory - Distributor Order Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="navbar-brand">
+        <div class="navbar-brand-icon">DO</div>
+        <h2>Distributor Order Management</h2>
+    </div>
+
+    <nav class="nav-links" id="navLinks">
+        <!-- Rendered dynamically by auth.js -->
+    </nav>
+
+    <div class="navbar-user">
+        <div class="user-info">
+            <div id="usernameDisplay">User</div>
+            <div class="user-role" id="roleDisplay">ROLE</div>
+        </div>
+        <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="page-header">
+        <div>
+            <h1>Products & Inventory</h1>
+            <p>Manage product catalog, stock levels, and restock inventory.</p>
+        </div>
+    </div>
+
+    <!-- ADD PRODUCT (Only for Admin/Distributor) -->
+    <div class="card" id="addProductCard">
+        <div class="card-header">
+            <div>
+                <h2>Add New Product</h2>
+                <p>Enter product specifications and inventory thresholds.</p>
+            </div>
+        </div>
+
+        <form onsubmit="event.preventDefault(); addProduct();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="productName">Product Name</label>
+                    <input id="productName" placeholder="e.g. Paracetamol 500mg" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="productCategory">Category</label>
+                    <input id="productCategory" placeholder="e.g. Pharmaceuticals" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="productPrice">Price (₹)</label>
+                    <input id="productPrice" type="number" step="0.01" min="0.01" placeholder="e.g. 45.00" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="productStock">Initial Stock</label>
+                    <input id="productStock" type="number" min="0" placeholder="e.g. 500" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="productReorder">Reorder Level</label>
+                    <input id="productReorder" type="number" min="0" placeholder="e.g. 50" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="productDescription">Description</label>
+                    <input id="productDescription" placeholder="Optional product description">
+                </div>
+            </div>
+
+            <div class="action-group">
+                <button type="submit" class="btn btn-primary">Add Product</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- SEARCH & FILTER -->
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2>Product Catalog</h2>
+                <p>View, search, and monitor inventory items.</p>
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <input id="productSearch" placeholder="Search by product name">
+            <button class="btn btn-primary" onclick="searchProducts()">Search</button>
+            <button class="btn btn-secondary" onclick="loadProducts()">All Products</button>
+            <button class="btn btn-secondary" id="lowStockBtn" onclick="loadLowStock()">Low Stock Only</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Price (₹)</th>
+                    <th>Stock</th>
+                    <th>Reorder Level</th>
+                    <th>Status</th>
+                    <th id="actionHeader">Action</th>
+                </tr>
+                </thead>
+                <tbody id="productTable">
+                <tr>
+                    <td colspan="8" class="empty-state">Loading products...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/products.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        requireLogin();
+        renderNavigation("products");
+
+        // Role-based visibility
+        if (isRetailer()) {
+            const addCard = document.getElementById("addProductCard");
+            if (addCard) addCard.style.display = "none";
+            const lowStockBtn = document.getElementById("lowStockBtn");
+            if (lowStockBtn) lowStockBtn.style.display = "none";
+        }
+
+        loadProducts();
+    });
+</script>
+
+</body>
+</html>

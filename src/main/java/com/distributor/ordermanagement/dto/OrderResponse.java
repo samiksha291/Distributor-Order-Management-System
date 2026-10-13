@@ -11,6 +11,8 @@ public class OrderResponse {
     private Long id;
     private Long retailerId;
     private String retailerName;
+    private Long distributorId;
+    private String distributorName;
     private LocalDateTime orderDate;
     private OrderStatus status;
     private BigDecimal totalAmount;
@@ -41,6 +43,22 @@ public class OrderResponse {
 
     public void setRetailerName(String retailerName) {
         this.retailerName = retailerName;
+    }
+
+    public Long getDistributorId() {
+        return distributorId;
+    }
+
+    public void setDistributorId(Long distributorId) {
+        this.distributorId = distributorId;
+    }
+
+    public String getDistributorName() {
+        return distributorName;
+    }
+
+    public void setDistributorName(String distributorName) {
+        this.distributorName = distributorName;
     }
 
     public LocalDateTime getOrderDate() {

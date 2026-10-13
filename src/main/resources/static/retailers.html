@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retailers - Distributor Order Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="navbar-brand">
+        <div class="navbar-brand-icon">DO</div>
+        <h2>Distributor Order Management</h2>
+    </div>
+
+    <nav class="nav-links" id="navLinks">
+        <!-- Rendered dynamically by auth.js -->
+    </nav>
+
+    <div class="navbar-user">
+        <div class="user-info">
+            <div id="usernameDisplay">User</div>
+            <div class="user-role" id="roleDisplay">ROLE</div>
+        </div>
+        <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="page-header">
+        <div>
+            <h1>Retailer Network</h1>
+            <p>Register and manage B2B retail partner accounts.</p>
+        </div>
+    </div>
+
+    <!-- ADD RETAILER -->
+    <div class="card" id="addRetailerCard">
+        <div class="card-header">
+            <div>
+                <h2>Add Retail Partner</h2>
+                <p>Register a new retailer business profile.</p>
+            </div>
+        </div>
+
+        <form onsubmit="event.preventDefault(); createRetailer();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="businessName">Business Name</label>
+                    <input id="businessName" placeholder="e.g. Apex Pharma Store" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="ownerName">Owner Name</label>
+                    <input id="ownerName" placeholder="e.g. Rajesh Sharma" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number (10 digits)</label>
+                    <input id="phone" pattern="[0-9]{10}" placeholder="e.g. 9876543210" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input id="email" type="email" placeholder="e.g. store@apex.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="address">Store Address</label>
+                    <input id="address" placeholder="e.g. 12 Market Street, Mumbai">
+                </div>
+            </div>
+
+            <div class="action-group">
+                <button type="submit" class="btn btn-primary">Add Retailer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- MY RETAIL PARTNERS -->
+    <div class="card" id="myRetailersCard">
+        <div class="card-header">
+            <div>
+                <h2>My Retail Partners</h2>
+                <p>Retailers associated with your distributor account.</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Business Name</th>
+                    <th>Owner</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody id="myRetailerTable">
+                <tr>
+                    <td colspan="7" class="empty-state">Loading your partners...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ALL REGISTERED RETAILERS -->
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2>All Registered Retailers</h2>
+                <p>Directory of registered retailer accounts.</p>
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <input id="retailerSearch" placeholder="Search by business name">
+            <button class="btn btn-primary" onclick="searchRetailers()">Search</button>
+            <button class="btn btn-secondary" onclick="loadRetailers()">Refresh</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Business Name</th>
+                    <th>Owner</th>
+                    <th>Phone</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody id="retailerTable">
+                <tr>
+                    <td colspan="5" class="empty-state">Loading retailers...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/retailers.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        requireLogin();
+        if (isRetailer()) {
+            alert("Retailers do not have access to retailer management.");
+            window.location.href = "/dashboard.html";
+            return;
+        }
+        renderNavigation("retailers");
+        loadRetailers();
+    });
+</script>
+
+</body>
+</html>

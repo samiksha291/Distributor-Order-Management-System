@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports & Analytics - Distributor Order Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .report-section {
+            margin-bottom: 30px;
+        }
+
+        .report-section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .report-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .report-card-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+        }
+
+        .report-card-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 10px;
+        }
+
+        .report-card-sub {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="navbar-brand">
+        <div class="navbar-brand-icon">DO</div>
+        <h2>Distributor Order Management</h2>
+    </div>
+
+    <nav class="nav-links" id="navLinks">
+        <!-- Rendered dynamically by auth.js -->
+    </nav>
+
+    <div class="navbar-user">
+        <div class="user-info">
+            <div id="usernameDisplay">User</div>
+            <div class="user-role" id="roleDisplay">ROLE</div>
+        </div>
+        <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="page-header">
+        <div>
+            <h1>Business Reports & Analytics</h1>
+            <p>Live calculated statistics across sales, orders, payments, inventory and retailers.</p>
+        </div>
+        <div>
+            <button class="btn btn-primary" onclick="loadReports()">Refresh Reports</button>
+        </div>
+    </div>
+
+    <div id="reportError" class="alert-box" style="display: none;"></div>
+
+    <!-- 1. SALES -->
+    <div class="report-section">
+        <div class="report-section-title">
+            <span>📊</span> Sales Performance
+        </div>
+        <div class="report-grid">
+            <div class="report-card">
+                <div class="report-card-label">Total Sales</div>
+                <div class="report-card-value" id="repTotalSales">₹0.00</div>
+                <div class="report-card-sub">Gross revenue from all orders</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">Total Orders</div>
+                <div class="report-card-value" id="repTotalOrders">0</div>
+                <div class="report-card-sub">All-time order count</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">Average Order Value</div>
+                <div class="report-card-value" id="repAvgOrderValue">₹0.00</div>
+                <div class="report-card-sub">Sales per completed order</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. ORDERS STATUS -->
+    <div class="report-section">
+        <div class="report-section-title">
+            <span>📦</span> Orders Breakdown by Status
+        </div>
+        <div class="report-grid">
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-warning">Pending</span>
+                </div>
+                <div class="report-card-value" id="repPendingOrders">0</div>
+                <div class="report-card-sub">Awaiting confirmation</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-info">Confirmed</span>
+                </div>
+                <div class="report-card-value" id="repConfirmedOrders">0</div>
+                <div class="report-card-sub">Confirmed by distributor</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-primary">Packed</span>
+                </div>
+                <div class="report-card-value" id="repPackedOrders">0</div>
+                <div class="report-card-sub">Ready in warehouse</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-info">Shipped</span>
+                </div>
+                <div class="report-card-value" id="repShippedOrders">0</div>
+                <div class="report-card-sub">In transit to retailer</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-success">Delivered</span>
+                </div>
+                <div class="report-card-value" id="repDeliveredOrders">0</div>
+                <div class="report-card-sub">Completed deliveries</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. PAYMENTS -->
+    <div class="report-section">
+        <div class="report-section-title">
+            <span>💳</span> Payments & Receivables
+        </div>
+        <div class="report-grid">
+            <div class="report-card">
+                <div class="report-card-label">Total Paid</div>
+                <div class="report-card-value" style="color: #166534;" id="repTotalPaid">₹0.00</div>
+                <div class="report-card-sub">Collected cash inflow</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">Total Outstanding</div>
+                <div class="report-card-value" style="color: #991b1b;" id="repTotalOutstanding">₹0.00</div>
+                <div class="report-card-sub">Pending receivables</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-unpaid">Pending</span>
+                </div>
+                <div class="report-card-value" id="repPendingPayments">0</div>
+                <div class="report-card-sub">No payment received yet</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-partial">Partial</span>
+                </div>
+                <div class="report-card-value" id="repPartialPayments">0</div>
+                <div class="report-card-sub">Partially paid orders</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">
+                    <span class="badge badge-paid">Paid</span>
+                </div>
+                <div class="report-card-value" id="repPaidPayments">0</div>
+                <div class="report-card-sub">Fully settled invoices</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. INVENTORY -->
+    <div class="report-section">
+        <div class="report-section-title">
+            <span>🏢</span> Inventory Status
+        </div>
+        <div class="report-grid">
+            <div class="report-card">
+                <div class="report-card-label">Total Products</div>
+                <div class="report-card-value" id="repTotalProducts">0</div>
+                <div class="report-card-sub">Active catalog SKUs</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">Low Stock Products</div>
+                <div class="report-card-value" style="color: #92400e;" id="repLowStockProducts">0</div>
+                <div class="report-card-sub">At or below reorder level</div>
+            </div>
+            <div class="report-card">
+                <div class="report-card-label">Total Stock Units</div>
+                <div class="report-card-value" id="repTotalStock">0</div>
+                <div class="report-card-sub">Units available in warehouse</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. RETAILERS -->
+    <div class="report-section">
+        <div class="report-section-title">
+            <span>🏪</span> Retailer Network
+        </div>
+        <div class="report-grid">
+            <div class="report-card">
+                <div class="report-card-label">Total Retailers</div>
+                <div class="report-card-value" id="repTotalRetailers">0</div>
+                <div class="report-card-sub">Registered retail partners</div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/reports.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        requireLogin();
+        if (isRetailer()) {
+            alert("Access Denied: Reports are only accessible to Administrators and Distributors.");
+            window.location.href = "/dashboard.html";
+            return;
+        }
+        renderNavigation("reports");
+        loadReports();
+    });
+</script>
+
+</body>
+</html>

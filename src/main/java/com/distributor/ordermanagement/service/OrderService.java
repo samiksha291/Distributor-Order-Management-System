@@ -2,22 +2,19 @@ package com.distributor.ordermanagement.service;
 
 import com.distributor.ordermanagement.dto.CreateOrderRequest;
 import com.distributor.ordermanagement.dto.OrderItemRequest;
-import com.distributor.ordermanagement.entity.Order;
-import com.distributor.ordermanagement.entity.OrderItem;
-import com.distributor.ordermanagement.entity.OrderStatus;
-import com.distributor.ordermanagement.entity.Product;
-import com.distributor.ordermanagement.entity.Retailer;
+import com.distributor.ordermanagement.dto.OrderItemResponse;
+import com.distributor.ordermanagement.dto.OrderResponse;
+import com.distributor.ordermanagement.entity.*;
 import com.distributor.ordermanagement.repository.OrderRepository;
+import com.distributor.ordermanagement.repository.PaymentRepository;
 import com.distributor.ordermanagement.repository.ProductRepository;
 import com.distributor.ordermanagement.repository.RetailerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.distributor.ordermanagement.dto.OrderResponse;
-import com.distributor.ordermanagement.dto.OrderItemResponse;
-import java.util.List;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class OrderService {
@@ -25,26 +22,51 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final RetailerRepository retailerRepository;
+    private final PaymentRepository paymentRepository;
+    private final com.distributor.ordermanagement.repository.DistributorRepository distributorRepository;
 
     public OrderService(
             OrderRepository orderRepository,
             ProductRepository productRepository,
-            RetailerRepository retailerRepository) {
+            RetailerRepository retailerRepository,
+            PaymentRepository paymentRepository,
+            com.distributor.ordermanagement.repository.DistributorRepository distributorRepository) {
 
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.retailerRepository = retailerRepository;
+        this.paymentRepository = paymentRepository;
+        this.distributorRepository = distributorRepository;
     }
 
     @Transactional
     public Order createOrder(CreateOrderRequest request) {
 
+        if (request.getRetailerId() == null) {
+            throw new RuntimeException("Retailer ID is required");
+        }
+
+        if (request.getDistributorId() == null) {
+            throw new RuntimeException("Distributor ID is required");
+        }
+
         Retailer retailer = retailerRepository.findById(request.getRetailerId())
                 .orElseThrow(() -> new RuntimeException("Retailer not found"));
 
-        Order order = new Order();
+        Distributor distributor = distributorRepository.findById(request.getDistributorId())
+                .orElseThrow(() -> new RuntimeException("Distributor not found"));
 
+        if (!distributor.getRetailPartners().contains(retailer)) {
+            throw new RuntimeException("Retailer is not associated with this Distributor");
+        }
+
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new RuntimeException("Order must contain at least one product item");
+        }
+
+        Order order = new Order();
         order.setRetailer(retailer);
+        order.setDistributor(distributor);
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(OrderStatus.PENDING);
 
@@ -52,8 +74,16 @@ public class OrderService {
 
         for (OrderItemRequest itemRequest : request.getItems()) {
 
+            if (itemRequest.getProductId() == null) {
+                throw new RuntimeException("Product ID is required for each order item");
+            }
+
             Product product = productRepository.findById(itemRequest.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            if (product.getDistributor() == null || !product.getDistributor().getId().equals(distributor.getId())) {
+                throw new RuntimeException("Product " + product.getName() + " does not belong to the selected distributor");
+            }
 
             Integer quantity = itemRequest.getQuantity();
 
@@ -63,18 +93,15 @@ public class OrderService {
 
             if (product.getStockQuantity() < quantity) {
                 throw new RuntimeException(
-                        "Insufficient stock for product: " + product.getName()
+                        "Insufficient stock for product: " + product.getName() +
+                                ". Available: " + product.getStockQuantity() + ", requested: " + quantity
                 );
             }
 
             BigDecimal unitPrice = product.getPrice();
-
-            BigDecimal subtotal = unitPrice.multiply(
-                    BigDecimal.valueOf(quantity)
-            );
+            BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
 
             OrderItem orderItem = new OrderItem();
-
             orderItem.setOrder(order);
             orderItem.setProduct(product);
             orderItem.setQuantity(quantity);
@@ -82,20 +109,29 @@ public class OrderService {
             orderItem.setSubtotal(subtotal);
 
             order.getItems().add(orderItem);
-
             totalAmount = totalAmount.add(subtotal);
 
-            product.setStockQuantity(
-                    product.getStockQuantity() - quantity
-            );
-
+            // Deduct stock
+            product.setStockQuantity(product.getStockQuantity() - quantity);
             productRepository.save(product);
         }
 
         order.setTotalAmount(totalAmount);
+        Order savedOrder = orderRepository.save(order);
 
-        return orderRepository.save(order);
+        // Automatically initialize payment record in PENDING status
+        Payment payment = new Payment();
+        payment.setOrder(savedOrder);
+        payment.setTotalAmount(totalAmount);
+        payment.setPaidAmount(BigDecimal.ZERO);
+        payment.setOutstandingAmount(totalAmount);
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setPaymentDate(LocalDateTime.now());
+        paymentRepository.save(payment);
+
+        return savedOrder;
     }
+
     public OrderResponse convertToResponse(Order order) {
 
         OrderResponse response = new OrderResponse();
@@ -103,6 +139,12 @@ public class OrderService {
         response.setId(order.getId());
         response.setRetailerId(order.getRetailer().getId());
         response.setRetailerName(order.getRetailer().getBusinessName());
+
+        if (order.getDistributor() != null) {
+            response.setDistributorId(order.getDistributor().getId());
+            response.setDistributorName(order.getDistributor().getBusinessName());
+        }
+
         response.setOrderDate(order.getOrderDate());
         response.setStatus(order.getStatus());
         response.setTotalAmount(order.getTotalAmount());
@@ -111,13 +153,11 @@ public class OrderService {
                 .stream()
                 .map(item -> {
                     OrderItemResponse itemResponse = new OrderItemResponse();
-
                     itemResponse.setProductId(item.getProduct().getId());
                     itemResponse.setProductName(item.getProduct().getName());
                     itemResponse.setQuantity(item.getQuantity());
                     itemResponse.setUnitPrice(item.getUnitPrice());
                     itemResponse.setSubtotal(item.getSubtotal());
-
                     return itemResponse;
                 })
                 .toList();
@@ -126,6 +166,7 @@ public class OrderService {
 
         return response;
     }
+
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
     }
@@ -136,9 +177,15 @@ public class OrderService {
     }
 
     @Transactional
-    public Order updateOrderStatus(Long id, OrderStatus newStatus) {
+    public Order updateOrderStatus(Long id, OrderStatus newStatus, String username) {
 
         Order order = getOrderById(id);
+        Distributor distributor = distributorRepository.findByUserUsername(username)
+                .orElseThrow(() -> new RuntimeException("Distributor not found"));
+
+        if (order.getDistributor() == null || !order.getDistributor().getId().equals(distributor.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Access denied: You can only update status for your own orders");
+        }
 
         OrderStatus currentStatus = order.getStatus();
 
@@ -150,20 +197,41 @@ public class OrderService {
 
         if (!validTransition) {
             throw new RuntimeException(
-                    "Invalid status transition from "
-                            + currentStatus + " to " + newStatus
+                    "Invalid status transition from " + currentStatus + " to " + newStatus
             );
         }
 
         order.setStatus(newStatus);
-
         return orderRepository.save(order);
     }
+
     public List<Order> getOrdersByStatus(OrderStatus status) {
         return orderRepository.findByStatus(status);
     }
 
+    public List<Order> getOrdersByDistributor(Long distributorId) {
+        return orderRepository.findByDistributorId(distributorId);
+    }
+
+    public List<Order> getOrdersByDistributorAndStatus(Long distributorId, OrderStatus status) {
+        return orderRepository.findByDistributorIdAndStatus(distributorId, status);
+    }
+
     public List<Order> getOrdersByRetailer(Long retailerId) {
         return orderRepository.findByRetailerId(retailerId);
+    }
+
+    public List<Order> getOrdersByRetailerAndStatus(Long retailerId, OrderStatus status) {
+        return orderRepository.findByRetailerIdAndStatus(retailerId, status);
+    }
+
+    public List<Order> getOrdersByRetailerIds(List<Long> retailerIds) {
+        if (retailerIds.isEmpty()) return List.of();
+        return orderRepository.findByRetailerIdIn(retailerIds);
+    }
+
+    public List<Order> getOrdersByRetailerIdsAndStatus(List<Long> retailerIds, OrderStatus status) {
+        if (retailerIds.isEmpty()) return List.of();
+        return orderRepository.findByRetailerIdInAndStatus(retailerIds, status);
     }
 }

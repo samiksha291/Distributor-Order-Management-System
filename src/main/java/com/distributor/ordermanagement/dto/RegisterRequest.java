@@ -1,22 +1,20 @@
 package com.distributor.ordermanagement.dto;
 
 import com.distributor.ordermanagement.entity.Role;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public class RegisterRequest {
 
-    @NotBlank(message = "Username is required")
     private String username;
-
-    @NotBlank(message = "Password is required")
     private String password;
-
-    @NotNull(message = "Role is required")
     private Role role;
-
-    public RegisterRequest() {
-    }
+    
+    private String businessName;
+    private String ownerName;
+    private String contactPersonName;
+    private String fullName;
+    private String phone;
+    private String email;
+    private String address;
 
     public String getUsername() {
         return username;
@@ -40,5 +38,61 @@ public class RegisterRequest {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getBusinessName() {
+        return businessName;
+    }
+
+    public void setBusinessName(String businessName) {
+        this.businessName = businessName;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
+    }
+
+    public String getContactPersonName() {
+        return contactPersonName;
+    }
+
+    public void setContactPersonName(String contactPersonName) {
+        this.contactPersonName = contactPersonName;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

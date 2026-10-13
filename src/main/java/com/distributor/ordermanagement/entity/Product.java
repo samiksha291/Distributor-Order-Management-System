@@ -13,6 +13,10 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne
+    @JoinColumn(name = "distributor_id")
+    private Distributor distributor;
+
     @NotBlank(message = "Product name is required")
     @Column(nullable = false)
     private String name;
@@ -48,6 +52,14 @@ public class Product {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Distributor getDistributor() {
+        return distributor;
+    }
+
+    public void setDistributor(Distributor distributor) {
+        this.distributor = distributor;
     }
 
     public String getName() {

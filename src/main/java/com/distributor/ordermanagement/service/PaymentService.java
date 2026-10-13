@@ -1,6 +1,7 @@
 package com.distributor.ordermanagement.service;
 
 import com.distributor.ordermanagement.dto.PaymentRequest;
+import com.distributor.ordermanagement.dto.PaymentResponse;
 import com.distributor.ordermanagement.entity.Order;
 import com.distributor.ordermanagement.entity.Payment;
 import com.distributor.ordermanagement.entity.PaymentStatus;
@@ -8,7 +9,6 @@ import com.distributor.ordermanagement.repository.OrderRepository;
 import com.distributor.ordermanagement.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.distributor.ordermanagement.dto.PaymentResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,12 +44,12 @@ public class PaymentService {
                 .orElse(null);
 
         if (payment == null) {
-
             payment = new Payment();
-
             payment.setOrder(order);
             payment.setTotalAmount(order.getTotalAmount());
             payment.setPaidAmount(BigDecimal.ZERO);
+            payment.setOutstandingAmount(order.getTotalAmount());
+            payment.setStatus(PaymentStatus.PENDING);
         }
 
         BigDecimal newPaidAmount =
@@ -57,7 +57,8 @@ public class PaymentService {
 
         if (newPaidAmount.compareTo(payment.getTotalAmount()) > 0) {
             throw new RuntimeException(
-                    "Payment cannot be greater than order total"
+                    "Payment cannot be greater than order total. Remaining outstanding: ₹" +
+                            payment.getOutstandingAmount()
             );
         }
 
@@ -69,15 +70,10 @@ public class PaymentService {
         payment.setPaymentDate(LocalDateTime.now());
 
         if (outstandingAmount.compareTo(BigDecimal.ZERO) == 0) {
-
             payment.setStatus(PaymentStatus.PAID);
-
         } else if (newPaidAmount.compareTo(BigDecimal.ZERO) > 0) {
-
             payment.setStatus(PaymentStatus.PARTIAL);
-
         } else {
-
             payment.setStatus(PaymentStatus.PENDING);
         }
 
@@ -95,6 +91,20 @@ public class PaymentService {
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }
+
+    public List<Payment> getPaymentsByRetailer(Long retailerId) {
+        return paymentRepository.findByOrderRetailerId(retailerId);
+    }
+
+    public List<Payment> getPaymentsByDistributor(Long distributorId) {
+        return paymentRepository.findByOrderDistributorId(distributorId);
+    }
+
+    public List<Payment> getPaymentsByRetailerIds(List<Long> retailerIds) {
+        if (retailerIds.isEmpty()) return List.of();
+        return paymentRepository.findByOrderRetailerIdIn(retailerIds);
+    }
+
     public PaymentResponse convertToResponse(Payment payment) {
 
         PaymentResponse response = new PaymentResponse();

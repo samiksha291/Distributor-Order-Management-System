@@ -34,6 +34,11 @@ public class Retailer {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     public Retailer() {
     }
 
@@ -91,5 +96,13 @@ public class Retailer {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

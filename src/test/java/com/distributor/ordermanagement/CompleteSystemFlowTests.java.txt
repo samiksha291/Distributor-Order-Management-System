@@ -1,0 +1,460 @@
+package com.distributor.ordermanagement;
+
+import com.distributor.ordermanagement.controller.OrderController;
+import com.distributor.ordermanagement.dto.*;
+import com.distributor.ordermanagement.entity.*;
+import com.distributor.ordermanagement.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+public class CompleteSystemFlowTests {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RetailerRepository retailerRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    private String distributorToken;
+    private String retailerToken;
+    private String adminToken;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        // Ensure test users exist and acquire tokens
+        distributorToken = registerAndLogin("test_distributor", "distpass123", Role.DISTRIBUTOR);
+        retailerToken = registerAndLogin("test_retailer", "retpass123", Role.RETAILER);
+        adminToken = loginUser("admin", "admin123");
+    }
+
+    private String registerAndLogin(String username, String password, Role role) throws Exception {
+        if (!userRepository.existsByUsername(username)) {
+            RegisterRequest reg = new RegisterRequest();
+            reg.setUsername(username);
+            reg.setPassword(password);
+            reg.setRole(role);
+
+            mockMvc.perform(post("/api/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(reg)))
+                    .andExpect(status().isCreated());
+        }
+
+        return loginUser(username, password);
+    }
+
+    private String loginUser(String username, String password) throws Exception {
+        LoginRequest login = new LoginRequest();
+        login.setUsername(username);
+        login.setPassword(password);
+
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(login)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        LoginResponse response = objectMapper.readValue(result.getResponse().getContentAsString(), LoginResponse.class);
+        return response.getToken();
+    }
+
+    // ==========================================
+    // 1. AUTHENTICATION & REGISTRATION TESTS
+    // ==========================================
+
+    @Test
+    @DisplayName("Admin cannot be registered publicly")
+    void testAdminRegistrationBlocked() throws Exception {
+        RegisterRequest reg = new RegisterRequest();
+        reg.setUsername("fake_admin");
+        reg.setPassword("secret123");
+        reg.setRole(Role.ADMIN);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reg)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Short password should be rejected")
+    void testShortPasswordRejected() throws Exception {
+        RegisterRequest reg = new RegisterRequest();
+        reg.setUsername("short_user");
+        reg.setPassword("123");
+        reg.setRole(Role.DISTRIBUTOR);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(reg)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Invalid login credentials should fail")
+    void testInvalidLoginFails() throws Exception {
+        LoginRequest login = new LoginRequest();
+        login.setUsername("test_distributor");
+        login.setPassword("wrong_password");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(login)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ==========================================
+    // 2. PRODUCT & INVENTORY TESTS
+    // ==========================================
+
+    @Test
+    @DisplayName("Distributor can add product, view, search, and restock; Retailer can view and search")
+    void testProductManagementAndRestock() throws Exception {
+        // 1. Distributor adds a product
+        Product product = new Product();
+        product.setName("Amoxicillin 250mg " + System.currentTimeMillis());
+        product.setCategory("Antibiotics");
+        product.setPrice(BigDecimal.valueOf(120.50));
+        product.setStockQuantity(50);
+        product.setReorderLevel(10);
+        product.setActive(true);
+
+        MvcResult createResult = mockMvc.perform(post("/api/products")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(product)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        Product createdProduct = objectMapper.readValue(createResult.getResponse().getContentAsString(), Product.class);
+        assertNotNull(createdProduct.getId());
+
+        // 2. Retailer can view product list
+        mockMvc.perform(get("/api/products")
+                        .header("Authorization", "Bearer " + retailerToken))
+                .andExpect(status().isOk());
+
+        // 3. Retailer cannot create a product (403)
+        Product unauthorizedProduct = new Product();
+        unauthorizedProduct.setName("Unauthorized " + System.currentTimeMillis());
+        unauthorizedProduct.setCategory("Test");
+        unauthorizedProduct.setPrice(BigDecimal.valueOf(10.0));
+        unauthorizedProduct.setStockQuantity(10);
+        unauthorizedProduct.setReorderLevel(5);
+
+        mockMvc.perform(post("/api/products")
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(unauthorizedProduct)))
+                .andExpect(status().isForbidden());
+
+        // 4. Distributor restocks product
+        mockMvc.perform(post("/api/products/" + createdProduct.getId() + "/restock")
+                        .param("quantity", "25")
+                        .header("Authorization", "Bearer " + distributorToken))
+                .andExpect(status().isOk());
+
+        // Verify updated stock
+        Product updatedProduct = productRepository.findById(createdProduct.getId()).orElseThrow();
+        assertEquals(75, updatedProduct.getStockQuantity());
+
+        // 5. Retailer cannot restock product (403)
+        mockMvc.perform(post("/api/products/" + createdProduct.getId() + "/restock")
+                        .param("quantity", "10")
+                        .header("Authorization", "Bearer " + retailerToken))
+                .andExpect(status().isForbidden());
+    }
+
+    // ==========================================
+    // 3. RETAILER ISOLATION & MANAGEMENT TESTS
+    // ==========================================
+
+    @Test
+    @DisplayName("Retailer data isolation: Retailer can only access their own retailer profile")
+    void testRetailerDataIsolation() throws Exception {
+        // Distributor creates a separate retailer
+        Retailer otherRetailer = new Retailer();
+        otherRetailer.setBusinessName("Global Meds " + System.currentTimeMillis());
+        otherRetailer.setOwnerName("Suresh Rao");
+        otherRetailer.setPhone("9876543210");
+        otherRetailer.setEmail("suresh@global.com");
+        otherRetailer.setActive(true);
+
+        MvcResult createResult = mockMvc.perform(post("/api/retailers")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(otherRetailer)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        Retailer savedOther = objectMapper.readValue(createResult.getResponse().getContentAsString(), Retailer.class);
+
+        // Retailer tries to access other retailer by ID -> 403 Forbidden
+        mockMvc.perform(get("/api/retailers/" + savedOther.getId())
+                        .header("Authorization", "Bearer " + retailerToken))
+                .andExpect(status().isForbidden());
+
+        // Retailer lists retailers -> gets only their own retailer
+        MvcResult listResult = mockMvc.perform(get("/api/retailers")
+                        .header("Authorization", "Bearer " + retailerToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        List<?> retailers = objectMapper.readValue(listResult.getResponse().getContentAsString(), List.class);
+        assertEquals(1, retailers.size());
+    }
+
+    // ==========================================
+    // 4. ORDER CREATION, STOCK DEDUCTION & STATUS TRANSITIONS
+    // ==========================================
+
+    @Test
+    @DisplayName("Order creation deducts stock and enforces valid status transitions")
+    void testOrderCreationAndStatusTransitions() throws Exception {
+        // Create product with stock 100
+        Product product = new Product();
+        product.setName("Paracetamol " + System.currentTimeMillis());
+        product.setCategory("Analgesics");
+        product.setPrice(BigDecimal.valueOf(50.00));
+        product.setStockQuantity(100);
+        product.setReorderLevel(20);
+        product.setActive(true);
+        Product savedProduct = productRepository.save(product);
+
+        // Get test_retailer's retailer entity
+        Retailer testRetailerEntity = retailerRepository.findByUserUsername("test_retailer").orElseThrow();
+
+        // 1. Retailer creates order for 15 units
+        CreateOrderRequest orderReq = new CreateOrderRequest();
+        orderReq.setRetailerId(testRetailerEntity.getId());
+        OrderItemRequest item = new OrderItemRequest();
+        item.setProductId(savedProduct.getId());
+        item.setQuantity(15);
+        orderReq.setItems(List.of(item));
+
+        MvcResult orderResult = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        OrderResponse createdOrder = objectMapper.readValue(orderResult.getResponse().getContentAsString(), OrderResponse.class);
+        assertEquals(OrderStatus.PENDING, createdOrder.getStatus());
+        assertEquals(0, BigDecimal.valueOf(750.00).compareTo(createdOrder.getTotalAmount()));
+
+        // Verify stock is deducted from 100 to 85
+        Product checkedProduct = productRepository.findById(savedProduct.getId()).orElseThrow();
+        assertEquals(85, checkedProduct.getStockQuantity());
+
+        // 2. Retailer cannot update order status (403 Forbidden)
+        OrderController.StatusUpdateRequest statusReq = new OrderController.StatusUpdateRequest();
+        statusReq.setStatus(OrderStatus.CONFIRMED);
+
+        mockMvc.perform(put("/api/orders/" + createdOrder.getId() + "/status")
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isForbidden());
+
+        // 3. Distributor progresses order: PENDING -> CONFIRMED
+        mockMvc.perform(put("/api/orders/" + createdOrder.getId() + "/status")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isOk());
+
+        // 4. Invalid transition test: CONFIRMED directly to DELIVERED should fail
+        statusReq.setStatus(OrderStatus.DELIVERED);
+        mockMvc.perform(put("/api/orders/" + createdOrder.getId() + "/status")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isBadRequest());
+
+        // 5. Valid sequence: CONFIRMED -> PACKED -> SHIPPED -> DELIVERED
+        statusReq.setStatus(OrderStatus.PACKED);
+        mockMvc.perform(put("/api/orders/" + createdOrder.getId() + "/status")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isOk());
+
+        statusReq.setStatus(OrderStatus.SHIPPED);
+        mockMvc.perform(put("/api/orders/" + createdOrder.getId() + "/status")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isOk());
+
+        statusReq.setStatus(OrderStatus.DELIVERED);
+        mockMvc.perform(put("/api/orders/" + createdOrder.getId() + "/status")
+                        .header("Authorization", "Bearer " + distributorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isOk());
+    }
+
+    // ==========================================
+    // 5. PAYMENT FLOW & OUTSTANDING AMOUNT
+    // ==========================================
+
+    @Test
+    @DisplayName("Payment flow: Partial payment, Full payment, Outstanding balance, and Overpayment rejection")
+    void testPaymentFlow() throws Exception {
+        Product product = new Product();
+        product.setName("Insulin " + System.currentTimeMillis());
+        product.setCategory("Diabetes");
+        product.setPrice(BigDecimal.valueOf(500.00));
+        product.setStockQuantity(50);
+        product.setReorderLevel(5);
+        Product savedProduct = productRepository.save(product);
+
+        Retailer retailer = retailerRepository.findByUserUsername("test_retailer").orElseThrow();
+
+        // Create order for 2 units = ₹1000.00
+        CreateOrderRequest orderReq = new CreateOrderRequest();
+        orderReq.setRetailerId(retailer.getId());
+        OrderItemRequest item = new OrderItemRequest();
+        item.setProductId(savedProduct.getId());
+        item.setQuantity(2);
+        orderReq.setItems(List.of(item));
+
+        MvcResult orderResult = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        OrderResponse order = objectMapper.readValue(orderResult.getResponse().getContentAsString(), OrderResponse.class);
+
+        // Check payment record was initialized with PENDING, ₹1000 outstanding
+        Payment initialPayment = paymentRepository.findByOrderId(order.getId()).orElseThrow();
+        assertEquals(PaymentStatus.PENDING, initialPayment.getStatus());
+        assertEquals(0, BigDecimal.valueOf(1000.00).compareTo(initialPayment.getOutstandingAmount()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(initialPayment.getPaidAmount()));
+
+        // 1. Partial payment: ₹400.00
+        PaymentRequest partialPay = new PaymentRequest();
+        partialPay.setAmount(BigDecimal.valueOf(400.00));
+
+        MvcResult partialResult = mockMvc.perform(post("/api/payments/orders/" + order.getId())
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(partialPay)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        PaymentResponse partialResponse = objectMapper.readValue(partialResult.getResponse().getContentAsString(), PaymentResponse.class);
+        assertEquals(PaymentStatus.PARTIAL, partialResponse.getStatus());
+        assertEquals(0, BigDecimal.valueOf(400.00).compareTo(partialResponse.getPaidAmount()));
+        assertEquals(0, BigDecimal.valueOf(600.00).compareTo(partialResponse.getOutstandingAmount()));
+
+        // 2. Over-payment: Attempting to pay ₹700 when only ₹600 is outstanding should fail
+        PaymentRequest overPay = new PaymentRequest();
+        overPay.setAmount(BigDecimal.valueOf(700.00));
+
+        mockMvc.perform(post("/api/payments/orders/" + order.getId())
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(overPay)))
+                .andExpect(status().isBadRequest());
+
+        // 3. Full remaining payment: ₹600.00
+        PaymentRequest fullPay = new PaymentRequest();
+        fullPay.setAmount(BigDecimal.valueOf(600.00));
+
+        MvcResult fullResult = mockMvc.perform(post("/api/payments/orders/" + order.getId())
+                        .header("Authorization", "Bearer " + retailerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(fullPay)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        PaymentResponse fullResponse = objectMapper.readValue(fullResult.getResponse().getContentAsString(), PaymentResponse.class);
+        assertEquals(PaymentStatus.PAID, fullResponse.getStatus());
+        assertEquals(0, BigDecimal.valueOf(1000.00).compareTo(fullResponse.getPaidAmount()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(fullResponse.getOutstandingAmount()));
+    }
+
+    // ==========================================
+    // 6. REPORTS API & ROLE-BASED ACCESS
+    // ==========================================
+
+    @Test
+    @DisplayName("Reports: Admin and Distributor allowed; Retailer denied (403)")
+    void testReportsRoleAuthorization() throws Exception {
+        // Admin access -> 200 OK
+        mockMvc.perform(get("/api/reports")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSales").exists())
+                .andExpect(jsonPath("$.totalOrders").exists())
+                .andExpect(jsonPath("$.averageOrderValue").exists())
+                .andExpect(jsonPath("$.pendingOrders").exists())
+                .andExpect(jsonPath("$.totalProducts").exists())
+                .andExpect(jsonPath("$.totalRetailers").exists());
+
+        // Distributor access -> 200 OK
+        mockMvc.perform(get("/api/reports")
+                        .header("Authorization", "Bearer " + distributorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalPaid").exists())
+                .andExpect(jsonPath("$.totalOutstanding").exists());
+
+        // Retailer access -> 403 Forbidden
+        mockMvc.perform(get("/api/reports")
+                        .header("Authorization", "Bearer " + retailerToken))
+                .andExpect(status().isForbidden());
+    }
+
+    // ==========================================
+    // 7. SECURITY & TOKEN VALIDATION
+    // ==========================================
+
+    @Test
+    @DisplayName("Protected endpoints reject requests without token or with invalid token")
+    void testTokenSecurity() throws Exception {
+        // No token -> 401 or 403
+        mockMvc.perform(get("/api/reports"))
+                .andExpect(status().isForbidden());
+
+        // Invalid token -> 401 or 403
+        mockMvc.perform(get("/api/reports")
+                        .header("Authorization", "Bearer invalid_garbage_token_12345"))
+                .andExpect(status().isForbidden());
+    }
+}

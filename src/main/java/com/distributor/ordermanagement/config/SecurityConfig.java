@@ -38,6 +38,20 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/",
+                                "/index.html",
+                                "/login.html",
+                                "/dashboard.html",
+                                "/orders.html",
+                                "/payments.html",
+                                "/products.html",
+                                "/retailers.html",
+                                "/reports.html",
+                                "/css/**",
+                                "/js/**"
+                        )
+                        .permitAll()
 
                         .requestMatchers("/api/auth/**")
                         .permitAll()

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payments - Distributor Order Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="navbar-brand">
+        <div class="navbar-brand-icon">DO</div>
+        <h2>Distributor Order Management</h2>
+    </div>
+
+    <nav class="nav-links" id="navLinks">
+        <!-- Rendered dynamically by auth.js -->
+    </nav>
+
+    <div class="navbar-user">
+        <div class="user-info">
+            <div id="usernameDisplay">User</div>
+            <div class="user-role" id="roleDisplay">ROLE</div>
+        </div>
+        <button class="btn btn-secondary btn-small" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<main class="container">
+
+    <div class="page-header">
+        <div>
+            <h1>Payment Management</h1>
+            <p>Track order payments, record transactions, and monitor outstanding amounts.</p>
+        </div>
+    </div>
+
+    <!-- RECORD PAYMENT -->
+    <div class="card" id="recordPaymentCard">
+        <div class="card-header">
+            <div>
+                <h2>Record Payment</h2>
+                <p>Submit partial or full payment for an order.</p>
+            </div>
+        </div>
+
+        <div id="paymentError" class="alert-box" style="display:none;"></div>
+
+        <form onsubmit="event.preventDefault(); makePayment();">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="paymentOrderId">Order ID</label>
+                    <input type="number" id="paymentOrderId" placeholder="e.g. 1" min="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentAmount">Payment Amount (₹)</label>
+                    <input type="number" id="paymentAmount" step="0.01" min="0.01" placeholder="e.g. 500.00" required>
+                </div>
+            </div>
+
+            <div class="action-group">
+                <button type="submit" class="btn btn-primary">Submit Payment</button>
+                <button type="button" class="btn btn-secondary" onclick="loadPayments()">Refresh Payments</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- PAYMENTS TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2>Payment Transactions</h2>
+                <p>History of all recorded payments and balances.</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th>Payment ID</th>
+                    <th>Order ID</th>
+                    <th>Total (₹)</th>
+                    <th>Paid (₹)</th>
+                    <th>Outstanding (₹)</th>
+                    <th>Status</th>
+                    <th>Date & Time</th>
+                </tr>
+                </thead>
+                <tbody id="paymentTable">
+                <tr>
+                    <td colspan="7" class="empty-state">Loading payments...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/payments.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        requireLogin();
+        renderNavigation("payments");
+        loadPayments();
+    });
+</script>
+
+</body>
+</html>

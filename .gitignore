@@ -37,3 +37,8 @@ target/
 .classpath
 .project
 .settings/
+
+.env
+.env.*
+application-local.properties
+token.json
